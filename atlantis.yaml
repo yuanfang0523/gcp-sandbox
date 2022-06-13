@@ -1,0 +1,24 @@
+# Atlantis workflows.  Only keep workflows in use.
+
+version: 3
+projects:
+- name: integration
+  dir: terraform
+  workspace: integ
+  workflow: integ
+- name: platform
+  dir: terraform
+  workspace: plat
+  workflow: plat
+- name: production
+  dir: terraform
+  workspace: prod
+  workflow: prod
+- name: staging
+  dir: terraform
+  workspace: stag
+  workflow: stag
+- name: testing
+  dir: terraform
+  workspace: test
+  workflow: test

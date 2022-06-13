@@ -1,0 +1,75 @@
+#!/bin/bash
+
+set -e
+
+root_path=$(cd "$(dirname "$0")/.." && pwd -P)
+script_path=$(cd "$(dirname "$0")" && pwd -P)
+
+usage() {
+  echo ""
+  echo "Usage: $0 <init/update/destroy/lock>"
+  echo ""
+  echo "init    - Initialize the Terraform workspace for development"
+  echo "update  - Plan and apply changes to the development stack"
+  echo "destroy - Destroy and remove all development resources"
+  echo "lock    - Update Terraform provider lockfile"
+}
+
+load_env() {
+  [ -f ${root_path}/.env.local ] && . ${root_path}/.env.local
+  if [ -z $LOCAL_TF_WORKSPACE ]; then
+    read -p "Your Terraform workspace: " LOCAL_TF_WORKSPACE
+    echo "LOCAL_TF_WORKSPACE=${LOCAL_TF_WORKSPACE}" > ${root_path}/.env.local
+  fi
+}
+
+init() {
+  tfenv install
+
+  echo "Initializing Terraform backend and workspace for ${LOCAL_TF_WORKSPACE}"
+  rm -rf .terraform
+  terraform init -backend-config bucket="pt-platform-tf-states" -backend-config \
+    impersonate_service_account = "terraform@picktrace-sandbox.iam.gserviceaccount.com"
+  terraform workspace new ${LOCAL_TF_WORKSPACE} || terraform workspace select ${LOCAL_TF_WORKSPACE}
+}
+
+init_if_needed() {
+  workspace=`terraform workspace show`
+  if [[ $workspace != $LOCAL_TF_WORKSPACE ]]; then
+    init
+  fi
+}
+
+update() {
+  init_if_needed
+
+  echo "Planning and Applying terraform changes"
+  terraform apply -var-file=tfvars/${LOCAL_TF_WORKSPACE}.tfvars.local
+}
+
+destroy() {
+  init_if_needed
+
+  echo "Destroying your Terraform-managed infrastruture"
+  terraform destroy -var-file=tfvars/${LOCAL_TF_WORKSPACE}.tfvars.local
+}
+
+lock() {
+  init
+
+  echo "Update Terraform provider lockfile"
+  terraform providers lock -platform=linux_amd64 -platform=darwin_amd64 -platform=windows_amd64
+}
+
+echo "Terraform development support script."
+
+load_env
+cd ${root_path}/terraform
+
+case $1 in
+  init) init;;
+  update) update;;
+  destroy) destroy;;
+  lock) lock;;
+  *) usage
+esac
