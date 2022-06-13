@@ -3,7 +3,7 @@ terraform {
 
   backend "gcs" {
     bucket                      = "pt-platform-tf-states"
-    prefix                      = "<REPO_NAME>"
+    prefix                      = "gcp-sandbox"
     impersonate_service_account = "terraform@picktrace-platform.iam.gserviceaccount.com"
   }
 

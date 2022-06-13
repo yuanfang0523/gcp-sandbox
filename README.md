@@ -1,105 +1,44 @@
-# Terraform Repo Template
+# Terraform for gcp-sandbox
 
-Terraform is used to manage infrastructure resources for GCP.
+This Terraform repo is generated with the [terraform-template](https://github.com/picktrace/terraform-template).
 
-## Usage
+## Development
 
-To create a new Terraform repo, Add a new repo in GitHub, and select `terraform-template`
-as the template.  Please wait for a few minutes before clone and start to work on the new
-repo.  This template includes a GitHub action workflow to customize the new repo.
+### Deploy Testing/Development Stack
 
-After the repo is created, remove unneeded workspace `tfvars` files under
-`terraform/tfvars` and corresponding workflow in `atlantis.yaml`.  See
-[section bellow](#terraform-workspace-and-atlantis-workflow).
+This repo has a shell script to help running Terraform commands to deploy and update
+a Testing/Development stack in the `picktrace-sandbox` GCP project.  Follow these steps
+to test `terraform apply`, and clean up after you've finished.
 
-### Repo Naming Convention
 
-A Terraform repo should be named after the service that the resources in the repo is
-for.  For example, for GCP resources used for `k8s`, the Terraform repo is named
-to `k8s-tf`.
+1. Create a `tfvars` file from the local template `tfvars/local.tfvars.local.tmpl`:
 
-The intialization GitHub action workflow will customize a few things in the repo based
-on the repo name.  These include:
+        cp tfvars/local.tfvars.local.tmpl tfvars/<YOUR_UNIQUE_WORKSPACE_NAME>.tfvars.local
 
-- Terraform state file prefix in GS bucket: `<REPO_NAME>`
-- Service tag on the resources: <REPO_NAME> without the `-tf` postfix
-- Owner: owner of the repo
+2. Modify your `tfvars` file accordingly.
 
-### Terraform Workspace
+3. Initialize you Terraform workspace, use <YOUR_UNIQUE_WORKSPACE_NAME> when prompted
+   for workspace:
 
-We use different Terraform workspaces for resources in different GCP project. Each workspace
-has a corresponding Atlantis workflow with the same name.  This enables
-Atlantis to plan and apply changes in the workspace.  Each workspace also has a `tfvars`
-under `terraform/tfvars` directory to customize settings for the workspace.  For example,
-`prod` and `test` workspace resources are in different GCP project, and may use different
-VPC.
+        ./bin/tf init
 
-A Terraform repo may not create resources in all workspaces.  For example, the
-[CICD repo](https://github.com/picktrace/cicd_tf) manages resources used for the CI/CD platform,
-and only in the `picktrace-platform` project and `plat` workspace.
+4. Plan and apply Terraform:
 
-Besides these workspaces for actually resource deployment, local workspaces for
-Terraform development is also supported.  A template `tfvars` file,
-`terraform/tfvars/local.tfvars.local.tmpl`, is provided, which can be used to
-create workspaces for developers.
+        ./bin/tf update
 
-## Repo Structure
+After you are done with your own resource stack, remove all resources by:
 
-This template creates these components for an initial Terraform repo:
+    ./bin/tf/destroy
 
-##### Version File
+### Terraform Lockfile
 
-`/.terraform-version`
+Starting from version 0.14, Terraform use a lock file to lock down provider versions.
+If you upgraded an existing provider, or added a new provider, you need to update
+the lockfile and commit the changes to Git.
 
-This file at the root of the repo has a single line indicating the required version
-of Terraform for `tfenv`.  If you have `tfenv` installed locally, it should handle version
-selection and ensure that your local run is using the proper version.
+The lockfile is updated on your local environment whenever you run `./bin/tf init`.
+However, because Atlantis is running on a different system arch (Linux),
+you need to update the lockfile with provider signatures for `Linux`.  This can be done
+with
 
-##### Atlantis Configuration
-
-`/atlantis.yaml`
-
-This file configures Atlantis workflows this repo needs.  It initially has all supported
-workflows.  A repo maintainer should remove all unneeded workflows when initially setting
-up the repo.
-
-##### `tf` Script
-
-`/bin/tf`
-
-This script is mostly used to ease up running Terraform locally for testing. Users may use
-these simple command to initialize, create, and delete testing resources in the
-`picktrace-sandbox` GCP project:
-
-- `./bin/tf init`
-- `./bin/tf update`
-- `./bin/tf destroy`
-
-In addition, the script also provide a command to update provider lock file if a new provider
-is added, or an existing provider is updated.
-
-- `./bin/tf lock`
-
-##### Terraform Folder
-
-`/terraform`
-
-All Terraform files should go under this folder. A few boilerplates files are created by
-the templated and they normally don't need to be modified by users.  These includes:
-
-- `terraform/terraform.tf`: Backend and provider configurations, also lock down Terraform version
-  for Atlantis
-- `terraform/vars.tf`: Variable definitions.  Came with a set of standard variables, user may
-  add any additional variables for things that are different between workspaces
-- `terraform/tfvars/*.tfvars`: Variable configuration for different workspaces. Should only
-  keep files for workspaces required by the repo.
-- `terraform/tfvars/local.tfvars.local.tmpl`: Template variable configuration for local testing.
-- `terraform/.terraform.lock.hcl`: Provider lock file.  Automatically generated and should not
-  be updated manually.
-
-##### Code Owner
-
-`.github/CODEOWNERS`
-
-All files in Terraform repos are owned by the Ops team, and require approval from a member
-of the team.  This should not be changed.
+    ./bin/tf/lock
